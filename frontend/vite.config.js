@@ -1,0 +1,34 @@
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+import path from 'path'
+import { fileURLToPath } from 'url'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+
+export default defineConfig({
+  plugins: [react()],
+  server: {
+    port: 3000,
+    allowedHosts: [
+      'tubular-serpent-wake.ngrok-free.dev',
+      '.ngrok-free.dev',
+    ],
+  },
+  resolve: {
+    alias: {
+      'react': path.resolve(__dirname, 'node_modules/react'),
+      'react-dom': path.resolve(__dirname, 'node_modules/react-dom'),
+      'react-router-dom': path.resolve(__dirname, 'node_modules/react-router-dom'),
+    }
+  },
+  optimizeDeps: {
+    esbuildOptions: {
+      loader: {
+        '.js': 'jsx'
+      }
+    }
+  }
+  // publicDir removed — it was set to false, which disabled serving
+  // anything from the /public folder (images, videos, favicon, etc.)
+  // Vite defaults to publicDir: 'public', which is what we want here.
+})
