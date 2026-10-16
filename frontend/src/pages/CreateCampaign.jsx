@@ -622,14 +622,7 @@ const platformNames = selectedPlatforms.map(id => platforms.find(p => p.id === i
             </div>
           ))}
         </div>
-        <div className="desktop-only" style={{ background:'rgba(255,255,255,0.07)', borderRadius:'12px', padding:'14px', border:'1px solid rgba(255,255,255,0.12)' }}>
-          <div style={{ display:'flex', alignItems:'center', gap:'8px', marginBottom:'6px' }}>
-            <HelpCircle size={16} color="#fff" strokeWidth={2}/>
-            <span style={{ fontSize:'13px', fontWeight:'700', color:'#fff' }}>Need Help?</span>
-          </div>
-          <p style={{ fontSize:'12px', color:'rgba(255,255,255,0.65)', margin:'0 0 10px 0', lineHeight:'1.5' }}>Book a call with our ad experts</p>
-          <button style={{ width:'100%', padding:'9px', borderRadius:'8px', border:'1.5px solid rgba(255,255,255,0.4)', background:'transparent', color:'#fff', fontSize:'13px', fontWeight:'600', cursor:'pointer', fontFamily:'inherit' }}>Book a Call</button>
-        </div>
+        <NeedHelpCard />
       </div>
 
       <div className="app-main" style={{ flex:1, padding:'24px 28px', overflowY:'auto', display:'flex', flexDirection:'column', gap:'20px' }}>
@@ -761,6 +754,36 @@ const platformNames = selectedPlatforms.map(id => platforms.find(p => p.id === i
             Go to Dashboard
           </button>
         </div>
+      </div>
+    </div>
+  )
+}
+
+// ════════════════════════════════════════════════════
+// NEED HELP CARD (click-to-call)
+// ════════════════════════════════════════════════════
+const SUPPORT_PHONE         = '+919410207475'
+const SUPPORT_PHONE_DISPLAY = '+91 94102 07475'
+
+const NeedHelpCard = () => {
+  return (
+    <div className="desktop-only" style={{ background:'rgba(255,255,255,0.07)', borderRadius:'12px', padding:'14px', border:'1px solid rgba(255,255,255,0.12)', marginTop:'8px' }}>
+      <div style={{ display:'flex', alignItems:'center', gap:'8px', marginBottom:'6px' }}>
+        <HelpCircle size={16} color="#fff" strokeWidth={2}/>
+        <span style={{ fontSize:'13px', fontWeight:'700', color:'#fff' }}>Need Help?</span>
+      </div>
+      <p style={{ fontSize:'12px', color:'rgba(255,255,255,0.65)', margin:'0 0 10px 0', lineHeight:'1.5' }}>
+        Call our ad experts
+      </p>
+      <a
+        href={`tel:${SUPPORT_PHONE}`}
+        style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:'8px', width:'100%', padding:'9px', borderRadius:'8px', border:'1.5px solid rgba(255,255,255,0.4)', background:'transparent', color:'#fff', fontSize:'13px', fontWeight:'600', cursor:'pointer', fontFamily:'inherit', textDecoration:'none', boxSizing:'border-box' }}
+      >
+        <Phone size={14} strokeWidth={2.3}/>
+        Call Now
+      </a>
+      <div style={{ textAlign:'center', fontSize:'11px', color:'rgba(255,255,255,0.55)', marginTop:'8px' }}>
+        {SUPPORT_PHONE_DISPLAY}
       </div>
     </div>
   )
@@ -1368,14 +1391,7 @@ const content = adContents[googleId] || Object.values(adContents).find(c => c?.i
             </div>
           ))}
         </div>
-        <div className="desktop-only" style={s.needHelp}>
-          <div style={{ display:'flex', alignItems:'center', gap:'8px', marginBottom:'6px' }}>
-            <HelpCircle size={16} color="#fff" strokeWidth={2}/>
-            <span style={{ fontSize:'13px', fontWeight:'700', color:'#fff' }}>Need Help?</span>
-          </div>
-          <p style={{ fontSize:'12px', color:'rgba(255,255,255,0.65)', margin:'0 0 10px 0', lineHeight:'1.5' }}>Book a call with our ad experts</p>
-          <button style={s.bookNowBtn}>Book Now</button>
-        </div>
+        <NeedHelpCard />
       </div>
 
       {/* ── Center (now full width — no right panel) ── */}
@@ -2282,8 +2298,6 @@ const s = {
   stepCircleDone: { background:'#22c55e', color:'#fff', border:'1.5px solid #22c55e' },
   stepLabel:      { color:'rgba(255,255,255,0.65)', fontSize:'12.5px', fontWeight:'500' },
   stepLabelActive:{ color:'#fff', fontWeight:'600' },
-  needHelp:   { background:'rgba(255,255,255,0.07)', borderRadius:'12px', padding:'14px', border:'1px solid rgba(255,255,255,0.12)', marginTop:'8px' },
-  bookNowBtn: { width:'100%', padding:'9px', borderRadius:'8px', border:'1.5px solid rgba(255,255,255,0.4)', background:'transparent', color:'#fff', fontSize:'13px', fontWeight:'600', cursor:'pointer', fontFamily:'inherit' },
   mainContent: { flex:1, padding:'28px 24px', overflowY:'auto', minWidth:0, height:'100vh', display:'flex', flexDirection:'column' },
   backBtn:      { background:'none', border:'none', color:'#2b7fff', fontSize:'13px', cursor:'pointer', padding:'0 0 16px 0', fontFamily:'inherit', display:'flex', alignItems:'center', gap:'4px', alignSelf:'flex-start' },
   formCard: { background:'#fff', borderRadius:'20px', border:'2px solid #cbd5e1', padding:'32px 36px', width:'100%', maxWidth:'100%', boxSizing:'border-box', boxShadow:'0 4px 20px rgba(15,23,42,0.06), 0 1px 3px rgba(15,23,42,0.04)' },
@@ -2314,7 +2328,7 @@ goalDescActive: { color:'#1e3a5f', fontWeight:'600' },
 backStepBtn:       { display:'flex', alignItems:'center', gap:'10px', padding:'8px 24px 8px 8px', borderRadius:'50px', border:'none', background:'#dfebff', color:'#0f172a', fontSize:'15px', fontWeight:'800', cursor:'pointer', fontFamily:'inherit' },
 backStepIcon:      { width:'32px', height:'32px', borderRadius:'50%', background:'#2b7fff', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 },
   submitBtnDisabled: { flex:1, padding:'15px 24px', borderRadius:'12px', border:'none', background:'#93b8f4', color:'#fff', fontSize:'15px', fontWeight:'600', cursor:'not-allowed', fontFamily:'inherit' },
-  budgetInputWrap: { display:'flex', alignItems:'center', border:'2px solid #cbd5e1', borderRadius:'10px', background:'#fff', overflow:'hidden' },lect:        { width:'100%', padding:'12px 36px 12px 40px', borderRadius:'10px', border:'2px solid #cbd5e1', background:'#fff', fontSize:'13px', fontWeight:'600', color:'#0f172a', outline:'none', fontFamily:'inherit', appearance:'none', cursor:'pointer', boxShadow:'0 1px 2px rgba(15,23,42,0.03)' },
+  budgetInputWrap: { display:'flex', alignItems:'center', border:'2px solid #cbd5e1', borderRadius:'10px', background:'#fff', overflow:'hidden' },
   budgetSymbol:    { padding:'12px 14px', background:'#f8faff', color:'#94a3b8', fontSize:'14px', fontWeight:'600', borderRight:'1.5px solid #e4e9f5' },
   budgetInput:     { flex:1, padding:'12px 14px', border:'none', fontSize:'13px', fontWeight:'600', color:'#0f172a', outline:'none', fontFamily:'inherit', minWidth:0 },
   budgetUnit:      { padding:'12px 14px', background:'#f8faff', color:'#94a3b8', fontSize:'12px', borderLeft:'1.5px solid #e4e9f5' },

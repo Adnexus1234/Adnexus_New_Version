@@ -502,3 +502,52 @@ class NotificationRead(Base):
     notification_id = Column(Integer, ForeignKey("notifications.id"), primary_key=True)
     read_at         = Column(DateTime, default=func.now())
     dismissed_at    = Column(DateTime, nullable=True)   # ← NEW — user ne "✕" dabaya
+
+# ════════════════════════════════════════════════════
+# Design Templates Table
+# Admin-defined templates (industry-wise), used by the Designs feature.
+# Background is fixed; layers (heading/subheading/cta/theme) are editable defaults.
+# ════════════════════════════════════════════════════
+class DesignTemplate(Base):
+    __tablename__ = "design_templates"
+
+    id                  = Column(Integer, primary_key=True, index=True)
+    industry            = Column(String(100), nullable=False)     # e.g. "financial_services"
+    name                = Column(String(200), nullable=False)     # e.g. "Invest and Earn"
+    background_image_url = Column(String(500), nullable=False)
+    heading_default      = Column(String(200), default="")
+    subheading_default   = Column(String(200), default="")
+    cta_default          = Column(String(50),  default="Visit Us")
+    theme_bg_color        = Column(String(20), default="#f0ead6")
+    theme_text_color      = Column(String(20), default="#1a1a2e")
+    image_width          = Column(Integer, default=1080)
+    image_height         = Column(Integer, default=1080)
+    created_at           = Column(DateTime, default=func.now())
+
+    user_designs = relationship("UserDesign", back_populates="template")
+
+
+# ════════════════════════════════════════════════════
+# User Designs Table
+# A user's customized (saved/downloaded) version of a template.
+# ════════════════════════════════════════════════════
+class UserDesign(Base):
+    __tablename__ = "user_designs"
+
+    id              = Column(Integer, primary_key=True, index=True)
+    user_id         = Column(Integer, ForeignKey("users.id"), nullable=False)
+    template_id     = Column(Integer, ForeignKey("design_templates.id"), nullable=False)
+
+    heading_text    = Column(String(200))
+    subheading_text = Column(String(200))
+    business_name   = Column(String(200))
+    cta_text        = Column(String(50))
+    logo_url        = Column(String(500), nullable=True)
+    theme_bg_color  = Column(String(20))
+    theme_text_color = Column(String(20))
+
+    final_image_url = Column(String(500), nullable=True)   # Cloudinary URL, agar backend render/upload karein
+    created_at      = Column(DateTime, default=func.now())
+
+    user     = relationship("User")
+    template = relationship("DesignTemplate", back_populates="user_designs")    

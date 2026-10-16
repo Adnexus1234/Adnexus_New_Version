@@ -13,19 +13,40 @@ import { useLocation } from "react-router-dom";
  * App.jsx, inside <BrowserRouter> alongside <Routes>), pass userId if the
  * visitor is logged in so chats can be tied to their account.
  *
- * Adjust API_BASE to match your backend's base URL / axios instance.
+ * API_BASE:
+ *   - If VITE_API_BASE_URL is set (e.g. http://localhost:8000/api) it is used directly.
+ *   - Otherwise "/api" is used, which REQUIRES a Vite proxy to FastAPI
+ *     (see vite.config.js -> server.proxy), otherwise you get a 404.
  */
 
-const API_BASE = import.meta.env?.VITE_API_BASE_URL || "/api";
+const API_BASE =
+  import.meta.env?.VITE_API_BASE_URL ||
+  (import.meta.env.DEV ? "http://localhost:8000/api" : "/api");
+
+const GREETING =
+  "Hi! I'm the AdNexus support assistant. You can ask me anything about campaigns, leads, or connecting your ad platforms.";
+
+const FALLBACK_ERROR =
+  "Something went wrong on our side. Please try again in a bit, or message us on WhatsApp.";
+
+const greetingMessage = () => ({ role: "assistant", content: GREETING });
 
 export default function ChatWidget({ userId = null }) {
   const location = useLocation();
   const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState([]);
+  const [messages, setMessages] = useState([greetingMessage()]);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [sessionId, setSessionId] = useState(null);
-  const [escalated, setEscalated] = useState(false);
+ const [escalated, setEscalatedState] = useState(
+  () => localStorage.getItem("adnexus_chat_escalated") === "1"
+);
+
+function setEscalated(v) {
+  setEscalatedState(v);
+  if (v) localStorage.setItem("adnexus_chat_escalated", "1");
+  else localStorage.removeItem("adnexus_chat_escalated");
+}
   const scrollRef = useRef(null);
 
   // Restore session on mount
@@ -34,14 +55,6 @@ export default function ChatWidget({ userId = null }) {
     if (saved) {
       setSessionId(saved);
       fetchHistory(saved);
-    } else {
-      setMessages([
-        {
-          role: "assistant",
-          content:
-            "Hi! Main AdNexus support assistant hoon. Campaigns, leads, ya platform connection ke baare mein kuch bhi puch sakte ho.",
-        },
-      ]);
     }
   }, []);
 
@@ -50,7 +63,7 @@ export default function ChatWidget({ userId = null }) {
   }, [messages, isTyping]);
 
   // Poll for the support team's reply while a query is pending and the
-  // widget is open (Phase 1 — no LLM, admin replies asynchronously).
+  // widget is open (admin replies asynchronously).
   useEffect(() => {
     if (!isOpen || !sessionId || !escalated) return;
     const interval = setInterval(() => fetchHistory(sessionId), 6000);
@@ -60,18 +73,25 @@ export default function ChatWidget({ userId = null }) {
   async function fetchHistory(sid) {
     try {
       const res = await fetch(`${API_BASE}/chat/${sid}/history`);
+      if (res.status === 404) {
+        // Saved session no longer exists on the server — start fresh
+        localStorage.removeItem("adnexus_chat_session");
+        setSessionId(null);
+        setMessages([greetingMessage()]);
+        return;
+      }
       if (!res.ok) throw new Error("history fetch failed");
       const data = await res.json();
       if (data.length) {
         setMessages(data.map((m) => ({ role: m.role, content: m.content })));
         // stop polling once the support team has actually replied
-        if (data.some((m) => m.role === "admin")) setEscalated(false);
+      const st = data[data.length - 1]?.session_status;
+setEscalated(st === "pending_human" || st === "answered");
       }
     } catch {
-      // silent fail — falls back to fresh session on next send
+      // silent fail — keeps whatever is currently on screen
     }
   }
-
 
   async function sendMessage(text) {
     const trimmed = text.trim();
@@ -87,10 +107,11 @@ export default function ChatWidget({ userId = null }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: trimmed, session_id: sessionId, user_id: userId }),
       });
-      if (!res.ok) throw new Error("chat request failed");
+      if (!res.ok) throw new Error(`chat request failed (${res.status})`);
       const data = await res.json();
 
-      if (!sessionId) {
+      // Backend may create a new session (e.g. old id not found) — always keep ids in sync
+      if (data.session_id !== sessionId) {
         setSessionId(data.session_id);
         localStorage.setItem("adnexus_chat_session", data.session_id);
       }
@@ -100,14 +121,9 @@ export default function ChatWidget({ userId = null }) {
         { role: "assistant", content: data.reply, quickReplies: data.quick_replies || [] },
       ]);
       if (data.escalate) setEscalated(true);
-    } catch {
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          content: "Kuch technical issue aa gaya. Thodi der baad try karo, ya humein WhatsApp pe message karo.",
-        },
-      ]);
+    } catch (err) {
+      console.error("[ChatWidget]", err);
+      setMessages((prev) => [...prev, { role: "assistant", content: FALLBACK_ERROR }]);
     } finally {
       setIsTyping(false);
     }
@@ -117,13 +133,7 @@ export default function ChatWidget({ userId = null }) {
     localStorage.removeItem("adnexus_chat_session");
     setSessionId(null);
     setEscalated(false);
-    setMessages([
-      {
-        role: "assistant",
-        content:
-          "Hi! Main AdNexus support assistant hoon. Campaigns, leads, ya platform connection ke baare mein kuch bhi puch sakte ho.",
-      },
-    ]);
+    setMessages([greetingMessage()]);
   }
 
   // Only show the widget on dashboard/app pages — hidden on landing, login, etc.
@@ -195,7 +205,7 @@ export default function ChatWidget({ userId = null }) {
               style={styles.input}
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Apna sawaal likho..."
+              placeholder="Type your question..."
             />
             <button style={styles.sendBtn} type="submit" disabled={!input.trim()}>
               Send

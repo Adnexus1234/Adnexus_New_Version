@@ -60,7 +60,7 @@ const DashboardStyles = () => (
     }
 
     .dashboard-page {
-      min-height: 100vh;
+      min-height: 100dvh;
     }
 
     .dashboard-main {
@@ -321,6 +321,86 @@ const DashboardStyles = () => (
       padding: 4px;
       border-radius: 6px;
     }
+
+    /* ───── MOBILE FIXES ───── */
+    .dashboard-filterbar { position: relative; z-index: 20; overflow: visible !important; }
+    .campaign-meta { display: contents; }
+
+    @media (max-width: 760px) {
+      /* Filter bar: 2x2 grid, khali jagah nahi */
+      .dashboard-filterbar {
+        display: grid !important;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        align-items: stretch !important;
+        gap: 10px !important;
+        height: auto !important;
+        padding: 12px 14px !important;
+      }
+      .dashboard-filterbar .filter-label { display: none; }
+      .dashboard-filterbar .filter-campaign,
+      .dashboard-filterbar .filter-date { min-width: 0; }
+      .dashboard-filterbar .filter-campaign > * { width: 100%; max-width: 100%; box-sizing: border-box; }
+      .dashboard-filterbar .filter-date-pill { width: 100%; box-sizing: border-box; justify-content: center; min-height: 38px; }
+      .dashboard-filterbar .filter-date-pill span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .dashboard-filterbar .filter-actions {
+        grid-column: 1 / -1; margin-left: 0 !important; width: 100%;
+        display: grid !important; grid-template-columns: 1fr 1fr; gap: 10px !important;
+      }
+      .dashboard-filterbar .filter-actions button { justify-content: center; width: 100%; padding-top: 10px; padding-bottom: 10px; }
+      /* Date popup screen se bahar na jaye */
+      .date-popover { left: auto !important; right: 0; width: min(280px, calc(100vw - 28px)) !important; }
+    }
+
+    @media (max-width: 640px) {
+      /* Notification popup poori width me */
+      .dashboard-topbar { position: relative; }
+      .notif-wrap { position: static !important; }
+      .notif-popover { left: 12px !important; right: 12px !important; width: auto !important; top: calc(100% + 6px) !important; }
+
+      /* KPI cards 2x2 */
+      .dashboard-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+      .kpi-card { padding: 14px 14px 12px !important; border-radius: 16px !important; }
+      .kpi-card .kpi-icon { width: 34px !important; height: 34px !important; margin-bottom: 10px !important; }
+      .kpi-card .kpi-label { font-size: 9.5px !important; }
+      .kpi-card .kpi-value { font-size: 20px !important; }
+      .kpi-card .kpi-sub { font-size: 11px !important; }
+
+      /* Recent campaigns row: 2 line me */
+      .campaign-row-card { flex-wrap: wrap; gap: 8px 12px !important; }
+      .campaign-row-card .campaign-info { flex: 1 1 0; min-width: 0; }
+      .campaign-more-wrap { order: 2; }
+      .campaign-meta {
+        display: flex; order: 3; width: 100%; box-sizing: border-box;
+        align-items: center; justify-content: space-between; padding-left: 50px;
+      }
+      .campaign-meta .campaign-spend { width: auto !important; }
+    }
+    .perf-badge-mobile { display: none; }
+
+    @media (max-width: 640px) {
+      .perf-badge { display: none; }
+      .perf-badge-mobile { display: block; margin-top: 8px; }
+      .perf-refresh-label { display: none; }
+      .perf-refresh-btn {
+        width: 38px; height: 38px; padding: 0 !important;
+        justify-content: center; border-radius: 12px !important; flex-shrink: 0;
+      }
+    }
+
+    @media (max-width: 640px) {
+      /* Greeting left me, icons right me — ek hi row */
+      .dashboard-topbar {
+        flex-wrap: nowrap !important;
+        align-items: center !important;
+        gap: 10px !important;
+        padding: 10px 14px !important;
+        height: auto !important;
+      }
+      .dashboard-topbar > div:first-child { min-width: 0; flex: 1; }
+      .dashboard-topbar > div:first-child > div:first-child { font-size: 17px !important; flex-wrap: wrap; }
+      .dashboard-topbar > div:first-child > div:last-child { font-size: 11px !important; line-height: 1.4; }
+      .dashboard-topbar-actions { gap: 8px !important; }
+    }
   `}</style>
 )
 
@@ -419,6 +499,14 @@ const Dashboard = () => {
         setNotifications(prev => prev.map(n => n.id === notif.id ? { ...n, is_read: true } : n))
       }).catch(() => {})
     }
+    // support notifications open the right screen
+    if (notif.title === 'New support chat request') {
+      setShowNotifDropdown(false)
+      navigate('/support-inbox')
+    } else if (notif.title === 'Support team replied') {
+      setShowNotifDropdown(false)
+      window.dispatchEvent(new Event('adnexus:toggle-chat'))
+    }
   }
   const handleDismiss = (e, notif) => {
     e.stopPropagation()
@@ -441,7 +529,7 @@ const Dashboard = () => {
   })
 
   const fetchAllStats = async (list) => {
-    // Har campaign ka number aate hi update ho, sabka wait nahi
+    // Update each campaign's numbers as soon as they arrive, don't wait for all of them
     list.forEach(async c => {
       try {
         const res = await getCampaignDetail(c.id)
@@ -663,21 +751,21 @@ const Dashboard = () => {
 
     rows.forEach(r => {
       if (r.clicks >= 20 && r.leads === 0)
-        aiSuggestions.push(`${r.name}: ${r.clicks} clicks aaye par 0 leads. Landing page ya lead form check karo.`)
+        aiSuggestions.push(`${r.name}: ${r.clicks} clicks but 0 leads. Check your landing page or lead form.`)
       else if (r.impressions >= 1000 && r.ctr < 1)
-        aiSuggestions.push(`${r.name}: CTR sirf ${r.ctr.toFixed(2)}% hai. Ad creative ya headline badal ke dekho.`)
+        aiSuggestions.push(`${r.name}: CTR is only ${r.ctr.toFixed(2)}%. Try changing the ad creative or headline.`)
       else if (r.impressions === 0 && r.spend === 0)
-        aiSuggestions.push(`${r.name}: abhi koi impressions nahi. Connection aur ad status check karo.`)
+        aiSuggestions.push(`${r.name}: no impressions yet. Check the connection and ad status.`)
     })
 
     const withLeads = rows.filter(r => r.leads > 0)
     if (withLeads.length > 0) {
       const best = [...withLeads].sort((a, b) => b.leads - a.leads)[0]
-      aiSuggestions.push(`${best.name} ke sabse zyada leads (${best.leads}) hain. Iska budget badhane par vichar karo.`)
+      aiSuggestions.push(`${best.name} has the most leads (${best.leads}). Consider increasing its budget.`)
     }
     if (withLeads.length >= 2) {
       const cheapest = [...withLeads].sort((a, b) => a.cpl - b.cpl)[0]
-      aiSuggestions.push(`${cheapest.name} ka CPL sabse kam hai (₹${cheapest.cpl.toFixed(2)}). Yahan aur invest karo.`)
+      aiSuggestions.push(`${cheapest.name} has the lowest CPL (₹${cheapest.cpl.toFixed(2)}). Consider investing more here.`)
     }
   }
   const visibleSuggestions = aiSuggestions.slice(0, 3)
@@ -722,7 +810,7 @@ const Dashboard = () => {
   const kpiCardBg = [t.kpiSpendBg, t.kpiLeadsBg, t.kpiCplBg, t.kpiActiveBg]
 
   /* Shared inline styles driven by theme tokens */
-  const wrap        = { display:'flex', height:'100vh', background: darkMode ? 'linear-gradient(135deg,#05101f 0%,#091830 50%,#05101f 100%)' : t.pageBg, fontFamily:"'Inter',system-ui,-apple-system,sans-serif", fontSize:'13px' }
+  const wrap        = { display:'flex', height:'100dvh', background: darkMode ? 'linear-gradient(135deg,#05101f 0%,#091830 50%,#05101f 100%)' : t.pageBg, fontFamily:"'Inter',system-ui,-apple-system,sans-serif", fontSize:'13px' }
   const mainCol      = { flex:1, display:'flex', flexDirection:'column', overflow:'hidden', minWidth:0, minHeight:0 }
   const sidebar     = { width: sidebarCollapsed ? '60px' : '230px', background: t.sidebarBg, borderRight: t.border, display:'flex', flexDirection:'column', flexShrink:0, overflow:'hidden', transition:'width 0.22s ease', ...(darkMode ? { backdropFilter:'blur(20px)' } : { boxShadow:'1px 0 0 #e4e9f5' }) }
   const sbLogo      = { display:'flex', alignItems:'center', gap:'10px', padding:'18px 16px 14px', borderBottom: t.border, minHeight:'58px', justifyContent: sidebarCollapsed ? 'center' : 'flex-start' }
@@ -751,7 +839,7 @@ const Dashboard = () => {
   const btnGhost    = { background: darkMode ? 'rgba(255,255,255,0.07)' : '#fff', color: t.accent, border: `1px solid ${t.accentBorder}`, borderRadius:'10px', padding:'7px 16px', fontSize:'12px', fontWeight:'500', cursor:'pointer', fontFamily:'inherit' }
   const content     = { flex:1, overflow:'auto', padding:'20px 24px', display:'flex', flexDirection:'column', gap:'18px' }
   const card        = { background: t.cardBg, border: t.border, borderRadius:'20px', padding:'22px 24px', ...(darkMode ? { backdropFilter:'blur(16px)' } : { boxShadow: t.shadow }) }
-  const cardHeader  = { display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'18px' }
+  const cardHeader  = { display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:'10px', marginBottom:'18px' }
   const cardTitle   = { fontSize:'14px', fontWeight:'800', color: t.textPrimary, letterSpacing:'-0.1px' }
   const cardSub     = { fontSize:'11px', color: t.textSecondary, marginTop:'2px' }
   const table       = { width:'100%', borderCollapse:'collapse', fontSize:'12px' }
@@ -814,7 +902,7 @@ const Dashboard = () => {
             <div style={topbarSub}>Here's what's happening with your campaigns today.</div>
           </div>
           <div className="dashboard-topbar-actions" style={{ display:'flex', alignItems:'center', gap:'8px' }}>
-            <div style={{ position: 'relative' }}>
+            <div className="notif-wrap" style={{ position: 'relative' }}>
               <button
                 className="icon-tooltip"
                 style={{ ...iconBtn, ...tooltipVars, position: 'relative' }}
@@ -839,7 +927,7 @@ const Dashboard = () => {
               </button>
 
               {showNotifDropdown && (
-                <div style={{
+                <div className="notif-popover" style={{
                   position: 'absolute', top: 'calc(100% + 8px)', right: 0, zIndex: 60,
                   background: t.cardBg, border: t.border, borderRadius: '14px',
                   width: '340px', maxHeight: '420px', display: 'flex', flexDirection: 'column',
@@ -919,21 +1007,23 @@ const Dashboard = () => {
 
         {/* Filter bar */}
         <div className="dashboard-filterbar" style={filterbar}>
-          <span style={filterLabel}>Campaign</span>
-          <CampaignSelect
-            campaigns={campaigns}
-            selectedCampaign={selectedCampaign}
-            onChange={handleCampaignChange}
-            t={t}
-            darkMode={darkMode}
-          />
-          <div style={{ position: 'relative' }}>
-            <div style={{ ...datePill, cursor: 'pointer' }} onClick={() => setShowDatePicker(v => !v)}>
-              <CalendarDays size={13} />
-              {dateRangeLabel()}
+          <span className="filter-label" style={filterLabel}>Campaign</span>
+          <div className="filter-campaign">
+            <CampaignSelect
+              campaigns={campaigns}
+              selectedCampaign={selectedCampaign}
+              onChange={handleCampaignChange}
+              t={t}
+              darkMode={darkMode}
+            />
+          </div>
+          <div className="filter-date" style={{ position: 'relative' }}>
+            <div className="filter-date-pill" style={{ ...datePill, cursor: 'pointer' }} onClick={() => setShowDatePicker(v => !v)}>
+              <CalendarDays size={13} style={{ flexShrink: 0 }} />
+              <span>{dateRangeLabel()}</span>
             </div>
             {showDatePicker && (
-              <div style={{
+              <div className="date-popover" style={{
                 position: 'absolute', top: 'calc(100% + 6px)', left: 0, zIndex: 50,
                 background: t.cardBg, border: t.border, borderRadius: '12px',
                 padding: '14px', width: '260px', boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
@@ -965,7 +1055,7 @@ const Dashboard = () => {
               </div>
             )}
           </div>
-          <div style={{ marginLeft:'auto', display:'flex', gap:'8px' }}>
+          <div className="filter-actions" style={{ marginLeft:'auto', display:'flex', gap:'8px' }}>
             <button style={btnPrimary} onClick={() => navigate('/dashboard/create-campaign')}><Plus size={14} /> New campaign</button>
             <button style={{ ...btnGhost, display:'flex', alignItems:'center', gap:'5px' }} onClick={() => navigate('/dashboard/leads')}><Users size={14} /> View leads</button>
           </div>
@@ -1039,15 +1129,20 @@ const Dashboard = () => {
 
               {/* Platform performance */}
               <div style={card}>
-                <div style={cardHeader}>
-                  <div>
+                <div style={{ ...cardHeader, flexWrap: 'nowrap', alignItems: 'flex-start' }}>
+                  <div style={{ minWidth: 0, flex: 1 }}>
                     <div style={cardTitle}>Platform Performance</div>
                     <div style={cardSub}>Spend and lead quality for your active channels</div>
+                    {selectedCampaign && (
+                      <div className="perf-badge-mobile">{badge('badgeBlue', selectedCampaign.name)}</div>
+                    )}
                   </div>
-                  <div style={{ display:'flex', alignItems:'center', gap:'8px' }}>
-                    {selectedCampaign && badge('badgeBlue', selectedCampaign.name)}
+                  <div style={{ display:'flex', alignItems:'center', gap:'8px', flexShrink: 0 }}>
+                    {selectedCampaign && <span className="perf-badge">{badge('badgeBlue', selectedCampaign.name)}</span>}
                     {selectedCampaign && (
                       <button
+                        className="perf-refresh-btn"
+                        aria-label="Refresh stats"
                         onClick={handleSyncStats}
                         disabled={syncing}
                         style={{
@@ -1060,7 +1155,7 @@ const Dashboard = () => {
                         }}
                       >
                         <RefreshCw size={13} style={{ animation: syncing ? 'spin 0.9s linear infinite' : 'none' }} />
-                        {syncing ? 'Syncing...' : 'Refresh Stats'}
+                        <span className="perf-refresh-label">{syncing ? 'Syncing...' : 'Refresh Stats'}</span>
                       </button>
                     )}
                   </div>
@@ -1187,7 +1282,7 @@ const Dashboard = () => {
                           <div style={{ width:'38px', height:'38px', borderRadius:'12px', background: t.chipBg, color: t.chipColor, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
                             <Megaphone size={16} color={t.chipColor} />
                           </div>
-                          <div style={{ minWidth:0, flex:1, cursor:'pointer' }} onClick={() => navigate(`/dashboard/campaign/${c.id}`)}>
+                          <div className="campaign-info" style={{ minWidth:0, flex:1, cursor:'pointer' }} onClick={() => navigate(`/dashboard/campaign/${c.id}`)}>
                             <div style={{ fontWeight:'700', fontSize:'14px', color: t.textPrimary, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', display:'flex', alignItems:'center', gap:'6px' }}>
                               {isPinned && <Pin size={12} color={t.accent} fill={t.accent} />}
                               {c.name}
@@ -1196,10 +1291,12 @@ const Dashboard = () => {
                               {(c.goal || '—')}{c.start_date ? ` · Started ${new Date(c.start_date).toLocaleDateString('en-IN', { month:'short', day:'numeric' })}` : ''}
                             </div>
                           </div>
-                          {badge('badgeBlue', statusLabel)}
-                          <div style={{ textAlign:'right', width:'96px', flexShrink:0 }}>
-                            <div style={{ fontWeight:'700', fontSize:'12px', color: t.textPrimary }}>₹{cSpend.toLocaleString()}</div>
-                            <div style={{ fontSize:'10px', color: t.textMuted, marginTop:'2px' }}>{cLeadsCount} leads</div>
+                          <div className="campaign-meta">
+                            {badge('badgeBlue', statusLabel)}
+                            <div className="campaign-spend" style={{ textAlign:'right', width:'96px', flexShrink:0 }}>
+                              <div style={{ fontWeight:'700', fontSize:'12px', color: t.textPrimary }}>₹{cSpend.toLocaleString()}</div>
+                              <div style={{ fontSize:'10px', color: t.textMuted, marginTop:'2px' }}>{cLeadsCount} leads</div>
+                            </div>
                           </div>
                           <div className="campaign-more-wrap">
                             <button className="campaign-more-btn" onClick={() => setOpenMenuId(v => v === c.id ? null : c.id)} style={{ color: t.textMuted }}>

@@ -4,6 +4,36 @@ import axios from 'axios'
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://127.0.0.1:8000'
 
+// Pixel ID is public (it is visible in page source anyway). Later this can come from the
+// /public/form/{id} response so each client gets their own pixel.
+const META_PIXEL_ID = import.meta.env.VITE_META_PIXEL_ID || '1788724385652129'
+
+// Loads the Meta Pixel base code once, then fires PageView.
+// Kept as one function so a consent check can wrap it later.
+const loadMetaPixel = (pixelId) => {
+  if (!pixelId || typeof window === 'undefined') return
+
+  if (!window.fbq) {
+    ;(function (f, b, e, v, n, t, s) {
+      n = f.fbq = function () {
+        n.callMethod ? n.callMethod.apply(n, arguments) : n.queue.push(arguments)
+      }
+      if (!f._fbq) f._fbq = n
+      n.push = n
+      n.loaded = true
+      n.version = '2.0'
+      n.queue = []
+      t = b.createElement(e)
+      t.async = true
+      t.src = v
+      s = b.getElementsByTagName(e)[0]
+      s.parentNode.insertBefore(t, s)
+    })(window, document, 'script', 'https://connect.facebook.net/en_US/fbevents.js')
+    window.fbq('init', pixelId)
+  }
+  window.fbq('track', 'PageView')
+}
+
 // ════════════════════════════════════════════════════
 // COLOR HELPERS — derive the whole chrome from one brand color
 // ════════════════════════════════════════════════════
@@ -191,26 +221,42 @@ const PublicLeadForm = () => {
   const { campaignId }              = useParams()
   const navigate                    = useNavigate()
   const [searchParams]              = useSearchParams()
-const platform                    = searchParams.get('platform') || ''
-const utm_source                  = searchParams.get('utm_source') || ''
-const gclid                       = searchParams.get('gclid') || ''
-const fbclid                      = searchParams.get('fbclid') || ''
+  const platform                    = searchParams.get('platform') || ''
+  const utm_source                  = searchParams.get('utm_source') || ''
+  const gclid                       = searchParams.get('gclid') || ''
+  const fbclid                      = searchParams.get('fbclid') || ''
 
-// Meta ka _fbp cookie padhne ka helper — pixel load hote hi ye cookie set hoti hai
-const getFbpCookie = () => {
-  try {
-    const match = document.cookie.match(/(?:^|;\s*)_fbp=([^;]+)/)
-    return match ? match[1] : ''
-  } catch {
-    return ''
+  // Meta ka _fbp cookie padhne ka helper — pixel load hote hi ye cookie set hoti hai
+  const getFbpCookie = () => {
+    try {
+      const match = document.cookie.match(/(?:^|;\s*)_fbp=([^;]+)/)
+      return match ? match[1] : ''
+    } catch {
+      return ''
+    }
   }
-}
+
+  // Meta's _fbc cookie (click ID). The Pixel sets it automatically when the URL has ?fbclid=
+  const getFbcCookie = () => {
+    try {
+      const match = document.cookie.match(/(?:^|;\s*)_fbc=([^;]+)/)
+      return match ? match[1] : ''
+    } catch {
+      return ''
+    }
+  }
 
   const [config, setConfig]         = useState(null)
   const [loading, setLoading]       = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError]           = useState('')
   const [formData, setFormData]     = useState({})
+
+  // Load the Meta Pixel + PageView (skipped for Google traffic)
+  useEffect(() => {
+    if (platform === 'google' || gclid) return
+    loadMetaPixel(META_PIXEL_ID)
+  }, [])
 
   // Fetch form config on load
   useEffect(() => {
@@ -250,30 +296,41 @@ const getFbpCookie = () => {
 
     try {
       // Separate common fields from extra fields
- const extra_data = {}
-formConfig.fields
-  .filter(f => f.extra)
-  .forEach(f => { if (formData[f.name]) extra_data[f.name] = formData[f.name] })
+      const extra_data = {}
+      formConfig.fields
+        .filter(f => f.extra)
+        .forEach(f => { if (formData[f.name]) extra_data[f.name] = formData[f.name] })
 
-// NAYA — tracking IDs bhi extra_data mein daalo, taaki backend
-// Meta CAPI / Google conversion upload ke liye use kar sake
-if (gclid)  extra_data.gclid  = gclid
-if (fbclid) extra_data.fbclid = fbclid
-const fbp = getFbpCookie()
-if (fbp)    extra_data.fbp    = fbp
+      // NAYA — tracking IDs bhi extra_data mein daalo, taaki backend
+      // Meta CAPI / Google conversion upload ke liye use kar sake
+      if (gclid)  extra_data.gclid  = gclid
+      if (fbclid) extra_data.fbclid = fbclid
+      const fbp = getFbpCookie()
+      if (fbp)    extra_data.fbp    = fbp
+      const fbc = getFbcCookie()
+      if (fbc)    extra_data.fbc    = fbc
 
-await axios.post(`${API_BASE}/public/submit/${campaignId}`, {
-  full_name:    formData.full_name || formData.student_name || '',
-  phone:        formData.phone        || '',
-  email:        formData.email        || '',
-  location:     formData.location     || '',
-  budget_range: formData.budget_range || '',
-  timeline:     formData.timeline     || '',
-  requirement:  formData.requirement  || '',
-  extra_data,
-  platform,
-  utm_source,
-})
+      // Same ID goes to the browser event and the server event so Meta can deduplicate them
+      const eventId = window.crypto?.randomUUID
+        ? window.crypto.randomUUID()
+        : `lead_${Date.now()}_${Math.random().toString(36).slice(2)}`
+
+      await axios.post(`${API_BASE}/public/submit/${campaignId}`, {
+        full_name:    formData.full_name || formData.student_name || '',
+        phone:        formData.phone        || '',
+        email:        formData.email        || '',
+        location:     formData.location     || '',
+        budget_range: formData.budget_range || '',
+        timeline:     formData.timeline     || '',
+        requirement:  formData.requirement  || '',
+        extra_data,
+        platform,
+        utm_source,
+        event_id:     eventId,
+      })
+
+      // Browser-side Lead event, fired only after the server accepted the submission
+      if (window.fbq) window.fbq('track', 'Lead', {}, { eventID: eventId })
 
       // Go to thank you page
       navigate('/thank-you', {

@@ -1,6 +1,9 @@
 {
   "dependencies": {
     "jspdf": "^4.2.1",
-    "jspdf-autotable": "^5.0.8"
+    "jspdf-autotable": "^5.0.8",
+    "konva": "^10.7.1",
+    "react-konva": "^19.3.0",
+    "use-image": "^1.1.4"
   }
 }

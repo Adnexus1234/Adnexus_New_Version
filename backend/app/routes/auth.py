@@ -1,6 +1,7 @@
 import re
 from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from datetime import datetime
 from google.oauth2 import id_token as google_id_token
@@ -311,41 +312,65 @@ def get_me(current_user: User = Depends(get_current_user)):
 @router.post("/google", response_model=TokenResponse)
 def google_login(data: GoogleLoginRequest, db: Session = Depends(get_db)):
     google_client_id = os.getenv("GOOGLE_CLIENT_ID")
+    if not google_client_id:
+        # Client ID na ho to audience check skip na ho jaye
+        raise HTTPException(status_code=500, detail="Google login is not configured on the server")
 
     try:
-        # Google ke saath token verify karo
         idinfo = google_id_token.verify_oauth2_token(
             data.id_token, google_requests.Request(), google_client_id
         )
     except ValueError:
         raise HTTPException(status_code=401, detail="Invalid Google token")
 
-    google_email = idinfo.get("email")
+    google_email = (idinfo.get("email") or "").strip().lower()
     google_id = idinfo.get("sub")
-    google_name = idinfo.get("name", google_email.split("@")[0])
 
     if not google_email:
         raise HTTPException(status_code=400, detail="Google account has no email")
+    if not idinfo.get("email_verified"):
+        raise HTTPException(status_code=400, detail="Google email is not verified")
 
-    # Check karo user already exist karta hai (email se)
-    user = db.query(User).filter(User.email == google_email).first()
+    google_name = idinfo.get("name") or google_email.split("@")[0]
+
+    user = db.query(User).filter(func.lower(User.email) == google_email).first()
 
     if user:
-        # Agar pehle email/password se bana tha, ab google_id link kar do
+        # Is email pe pehle se kisi aur Google account se link hai?
+        if user.google_id and user.google_id != google_id:
+            raise HTTPException(status_code=401, detail="This email is linked to a different Google account")
+
         if not user.google_id:
             user.google_id = google_id
+
+        # Email/password se signup kiya tha par OTP verify nahi hua tha:
+        # Google ne email ownership prove kar di, isliye us unverified password ko hata do
+        if not user.is_verified:
+            user.password = None
             user.auth_provider = "google"
-            db.commit()
-            db.refresh(user)
+            user.otp_code = None
+            user.otp_expires_at = None
+            user.otp_channel = None
+
+        user.is_verified = True
+        user.is_email_verified = True
+
+        # Purane users ke paas referral code na ho to de do
+        if not user.referral_code:
+            user.referral_code = generate_unique_referral_code(db)
+
+        db.commit()
+        db.refresh(user)
     else:
-        # Naya user banao — Google se aaya hai to auto-verified
+        # Naya user — Google se aaya hai to auto-verified
         user = User(
             name=google_name,
             email=google_email,
             google_id=google_id,
             auth_provider="google",
-            is_verified=True,  # Google already verify kar chuka hai
+            is_verified=True,
             is_email_verified=True,
+            referral_code=generate_unique_referral_code(db),
         )
         db.add(user)
         db.commit()

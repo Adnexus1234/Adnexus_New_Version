@@ -31,3 +31,6 @@ backup_.dump
 backend/template_videos_food/
 backend/templates_videos_*/
 frontend/src/assets/*.mp4
+
+# design template assets
+backend/design_templates_*/

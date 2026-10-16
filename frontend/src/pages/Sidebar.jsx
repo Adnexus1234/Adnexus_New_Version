@@ -1,11 +1,12 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import logo from '../assets/logo.png'
 import {
   LayoutGrid, TrendingUp, Users, BarChart3, Share2, CreditCard, Settings,
-  ChevronsUpDown, ChevronLeft, Sun, Moon,
+  ChevronsUpDown, ChevronLeft, Sun, Moon, LayoutTemplate, X, LifeBuoy,
 } from 'lucide-react'
+import { useSupportInfo } from '../components/SupportInboxLink'
 
 /* ─────────────────────────────────────────────────────────
    SHARED THEME TOKENS
@@ -148,11 +149,42 @@ const NAV_ITEMS = [
   { id:'dashboard',    label:'Dashboard',     path:'/dashboard',                 exact:true,  icon:<LayoutGrid size={18} /> },
   { id:'campaigns',    label:'Campaigns',     path:'/dashboard/create-campaign', icon:<TrendingUp size={18} /> },
   { id:'leads',        label:'Leads',         path:'/dashboard/leads',           icon:<Users size={18} /> },
+  { id:'designs',      label:'Designs',       path:'/dashboard/designs',         icon:<LayoutTemplate size={18} /> },
   { id:'analytics',    label:'Analytics',     path:'/dashboard/analytics',       icon:<BarChart3 size={18} /> },
   { id:'refer',        label:'Refer & Earn',  path:'/dashboard/refer',           icon:<Share2 size={18} /> },
   { id:'subscription', label:'Subscription',  path:'/dashboard/subscription',    icon:<CreditCard size={18} /> },
 ]
 const SETTINGS_ITEM = { id:'settings', label:'Settings', path:'/dashboard/settings', icon:<Settings size={18} /> }
+
+/* ─────────────────────────────────────────────────────────
+   MOBILE SUPPORT
+   Mobile pe sidebar khud hamburger top bar + slide-in drawer
+   ban jata hai. Kisi page me kuch badalna nahi padta.
+───────────────────────────────────────────────────────── */
+const MOBILE_BP = 768
+const TOPBAR_H = 60
+
+const useIsMobile = (bp = MOBILE_BP) => {
+  const get = () => typeof window !== 'undefined' && window.matchMedia(`(max-width:${bp}px)`).matches
+  const [isMobile, setIsMobile] = useState(get)
+  useEffect(() => {
+    const mq = window.matchMedia(`(max-width:${bp}px)`)
+    const handler = (e) => setIsMobile(e.matches)
+    setIsMobile(mq.matches)
+    mq.addEventListener('change', handler)
+    return () => mq.removeEventListener('change', handler)
+  }, [bp])
+  return isMobile
+}
+
+/* Mobile pe: page wrapper ko 100dvh do (address bar ka issue fix), aur
+   (top me ab koi extra gap nahi). */
+const MOBILE_CSS = `
+@media (max-width:${MOBILE_BP}px){
+  div:has(> .dashboard-sidebar){ height:100dvh !important; }
+  /* Top bar ke neeche se page content shuru ho */
+  .dashboard-sidebar + *{ margin-top:${TOPBAR_H}px !important; min-height:0; }
+}`
 
 /**
  * Common Sidebar — dashboard, leads, settings, jahan bhi chahiye
@@ -169,11 +201,26 @@ const SETTINGS_ITEM = { id:'settings', label:'Settings', path:'/dashboard/settin
  * (kyunki wo poore page ke look pe asar dalta hai, sirf sidebar
  * pe nahi) — Sidebar sirf unko use/update karta hai.
  */
-const Sidebar = ({ darkMode, setDarkMode, sidebarCollapsed, setSidebarCollapsed }) => {
+const Sidebar = ({ darkMode, setDarkMode, sidebarCollapsed: collapsedProp, setSidebarCollapsed }) => {
   const navigate = useNavigate()
   const location = useLocation()
   const { user } = useAuth()
+  const isMobile = useIsMobile()
+  const [open, setOpen] = useState(false)
   const t = darkMode ? DARK : LIGHT
+
+  // Support account ko hi "Support Inbox" menu dikhta hai (baaki users ko kuch nahi)
+  const supportInfo = useSupportInfo()
+
+  // Mobile pe drawer hamesha full width dikhega, collapse sirf desktop pe
+  const sidebarCollapsed = isMobile ? false : collapsedProp
+
+  // Route badalte hi drawer band
+  useEffect(() => { setOpen(false) }, [location.pathname])
+
+  // Desktop pe wapas jaane par drawer state reset
+  useEffect(() => { if (!isMobile) setOpen(false) }, [isMobile])
+
 
   const displayName = user?.name || 'User'
   const displayRole = user?.role || 'Member'
@@ -187,11 +234,24 @@ const Sidebar = ({ darkMode, setDarkMode, sidebarCollapsed, setSidebarCollapsed 
   const isActive = (item) =>
     item.exact ? location.pathname === item.path : location.pathname.startsWith(item.path)
 
-  const sidebar     = { width: sidebarCollapsed ? '60px' : '230px', background: t.sidebarBg, borderRight: t.border, display:'flex', flexDirection:'column', flexShrink:0, overflow:'hidden', transition:'width 0.22s ease', height:'100vh', ...(darkMode ? { backdropFilter:'blur(20px)' } : { boxShadow:'1px 0 0 #e4e9f5' }) }
+  const sidebar = {
+    width: sidebarCollapsed ? '60px' : '230px',
+    background: t.sidebarBg, borderRight: t.border,
+    display:'flex', flexDirection:'column', flexShrink:0, overflow:'hidden',
+    transition:'width 0.22s ease', height:'100vh',
+    ...(darkMode ? { backdropFilter:'blur(20px)' } : { boxShadow:'1px 0 0 #e4e9f5' }),
+    ...(isMobile ? {
+      position:'fixed', top:0, left:0, bottom:0, height:'100dvh', width:'260px', zIndex:50,
+      background: darkMode ? '#08142d' : '#ffffff',
+      transition:'transform 0.25s ease',
+      transform: open ? 'translateX(0)' : 'translateX(-100%)',
+      boxShadow: open ? '4px 0 24px rgba(0,0,0,0.25)' : 'none',
+    } : {}),
+  }
   const sbLogo      = { display:'flex', alignItems:'center', gap:'10px', padding:'18px 16px 14px', borderBottom: t.border, minHeight:'58px', justifyContent: sidebarCollapsed ? 'center' : 'flex-start' }
   const sbLogoText  = { fontSize:'16px', fontWeight:'700', color: t.textPrimary, letterSpacing:'-0.2px', whiteSpace:'nowrap' }
   const sbLogoSub   = { fontWeight:'700', textTransform:'uppercase', color: t.textMuted, fontSize:'9px', letterSpacing:'2.5px', marginTop:'1px', whiteSpace:'nowrap' }
-  const sbNav       = { display:'flex', flexDirection:'column', gap:'3px', padding:'12px 10px', flex:1 }
+  const sbNav       = { display:'flex', flexDirection:'column', gap:'3px', padding:'12px 10px', flex:1, overflowY:'auto' }
   const sbSectionLbl= { fontWeight:'700', textTransform:'uppercase', color: t.textMuted, fontSize:'10px', letterSpacing:'2px', padding: sidebarCollapsed ? '0' : '4px 12px 6px', whiteSpace:'nowrap', overflow:'hidden' }
   const navItemBase = { display:'flex', alignItems:'center', gap:'11px', padding:'9px 12px', borderRadius:'10px', border:'none', background:'none', cursor:'pointer', width:'100%', textAlign:'left', fontFamily:'inherit', fontSize:'13px', fontWeight:'500', color: t.navColor, whiteSpace:'nowrap', overflow:'hidden', transition:'all 0.15s' }
   const navItemActiveStyle = { background: t.navActiveBg, color: t.navActiveColor, ...(darkMode ? { border:'1px solid rgba(59,139,255,0.28)' } : {}) }
@@ -202,6 +262,30 @@ const Sidebar = ({ darkMode, setDarkMode, sidebarCollapsed, setSidebarCollapsed 
   const userRole    = { fontSize:'11px', color: t.textSecondary, whiteSpace:'nowrap' }
   const collapseBtn = { display:'flex', alignItems:'center', gap:'8px', padding:'8px', borderRadius:'10px', border:'none', background:'none', cursor:'pointer', width:'100%', fontFamily:'inherit', whiteSpace:'nowrap', overflow:'hidden', color: t.textSecondary, justifyContent: sidebarCollapsed ? 'center' : 'flex-start' }
 
+  // Mobile top bar: hamburger + logo + AdNexus (left), user initials (right)
+  const topBar = {
+    position:'fixed', top:0, left:0, right:0, height:`${TOPBAR_H}px`, zIndex:30,
+    display:'flex', alignItems:'center', gap:'12px', padding:'0 16px',
+    background: darkMode ? '#08142d' : t.topbarBg, borderBottom: t.border,
+    boxSizing:'border-box',
+  }
+  const menuBtn = {
+    width:'40px', height:'40px', borderRadius:'12px', flexShrink:0, cursor:'pointer', padding:0,
+    display:'flex', flexDirection:'column', alignItems:'flex-start', justifyContent:'center', gap:'4px', paddingLeft:'11px',
+    background: darkMode ? 'rgba(59,139,255,0.16)' : 'linear-gradient(135deg,#eaf2ff,#f4f8ff)',
+    border:`1px solid ${t.accentBorder}`,
+    boxShadow: darkMode ? 'none' : '0 2px 8px rgba(43,127,255,0.14)',
+    transition:'transform 0.12s ease', WebkitTapHighlightColor:'transparent',
+  }
+  const menuLine = { display:'block', height:'2.5px', borderRadius:'2px', background: t.accent }
+  const topAvatar = {
+    marginLeft:'auto', width:'40px', height:'40px', borderRadius:'50%', flexShrink:0,
+    display:'flex', alignItems:'center', justifyContent:'center',
+    background: t.accentLight, color: t.accent, fontWeight:'700', fontSize:'13px',
+  }
+  const iconBtn = { background:'none', border:'none', color: t.textPrimary, cursor:'pointer', padding:'6px', display:'flex', alignItems:'center', justifyContent:'center' }
+  const overlay = { position:'fixed', inset:0, background:'rgba(0,0,0,0.45)', zIndex:40 }
+
   const renderItem = (item) => (
     <button
       key={item.id}
@@ -211,64 +295,115 @@ const Sidebar = ({ darkMode, setDarkMode, sidebarCollapsed, setSidebarCollapsed 
     >
       <span style={{ flexShrink:0, display:'flex' }}>{item.icon}</span>
       {!sidebarCollapsed && <span style={{ overflow:'hidden', whiteSpace:'nowrap' }}>{item.label}</span>}
+      {!sidebarCollapsed && item.badge > 0 && (
+        <span style={{ marginLeft:'auto', background:'#ef4444', color:'#fff', fontSize:'10px', fontWeight:700, borderRadius:'10px', padding:'1px 7px', minWidth:'18px', textAlign:'center' }}>
+          {item.badge}
+        </span>
+      )}
     </button>
   )
 
+  // NOTE: order important hai — topbar, overlay, phir aside.
+  // Isse `.dashboard-sidebar + *` hamesha page ke main column ko pakadta hai.
   return (
-    <aside className="dashboard-sidebar" style={sidebar}>
-      <div style={sbLogo}>
-        <img src={logo} alt="AdNexus" style={{ width:'34px', height:'34px', objectFit:'contain', flexShrink:0 }} />
-        {!sidebarCollapsed && (
-          <div>
-            <div style={sbLogoText}>AdNexus</div>
-            <div style={sbLogoSub}>Growth OS</div>
-          </div>
-        )}
-      </div>
+    <>
+      <style>{MOBILE_CSS}</style>
 
-      <nav style={sbNav}>
-        {!sidebarCollapsed && <div style={sbSectionLbl}>Workspace</div>}
-        {NAV_ITEMS.map(renderItem)}
-        {!sidebarCollapsed && <div style={{ ...sbSectionLbl, marginTop:'14px' }}>Workspace settings</div>}
-        {renderItem(SETTINGS_ITEM)}
-      </nav>
-
-      <div style={sbBottom}>
-        <div style={{ borderRadius:'14px', background: darkMode ? 'rgba(255,255,255,0.06)' : '#f8faff', padding: sidebarCollapsed ? '8px' : '10px' }}>
-          <div style={userRow}>
-            <div style={userAvatar}>{displayInitials}</div>
-            {!sidebarCollapsed && (
-              <>
-                <div style={{ flex:1, overflow:'hidden', minWidth:0 }}>
-                  <div style={userName}>{displayName}</div>
-                  <div style={userRole}>{displayRole}</div>
-                </div>
-                <ChevronsUpDown size={14} style={{ flexShrink:0, color: t.textMuted }} />
-              </>
-            )}
-          </div>
+      {isMobile && (
+        <div style={topBar}>
           <button
-            onClick={() => setDarkMode(v => !v)}
-            style={{
-              display:'flex', alignItems:'center', gap:'8px', marginTop:'8px',
-              background: t.cardBg, border: t.border, borderRadius:'10px',
-              padding:'7px 10px', width:'100%', cursor:'pointer', fontFamily:'inherit',
-              justifyContent: sidebarCollapsed ? 'center' : 'space-between',
-              color: t.textSecondary,
-            }}
+            style={menuBtn}
+            onClick={() => setOpen(true)}
+            onTouchStart={(e) => { e.currentTarget.style.transform = 'scale(0.92)' }}
+            onTouchEnd={(e) => { e.currentTarget.style.transform = 'scale(1)' }}
+            aria-label="Open menu"
           >
-            <span style={{ display:'flex', alignItems:'center', gap:'6px', color: darkMode ? '#7bb8ff' : '#d97706' }}>
-              {darkMode ? <Moon size={16} /> : <Sun size={16} />}
-              {!sidebarCollapsed && <span style={{ fontSize:'12px', color: t.textPrimary, fontWeight:'500' }}>{darkMode ? 'Dark' : 'Light'}</span>}
-            </span>
+            <span style={{ ...menuLine, width:'18px' }} />
+            <span style={{ ...menuLine, width:'12px' }} />
+            <span style={{ ...menuLine, width:'15px' }} />
           </button>
+          <img src={logo} alt="AdNexus" style={{ width:'30px', height:'30px', objectFit:'contain', flexShrink:0 }} />
+          <span style={{ fontSize:'18px', fontWeight:'800', color: t.textPrimary, letterSpacing:'-0.3px', whiteSpace:'nowrap' }}>AdNexus</span>
+          <div style={topAvatar} title={displayName}>{displayInitials}</div>
         </div>
-        <button onClick={() => setSidebarCollapsed(v => !v)} style={{ ...collapseBtn, marginTop:'6px' }} title={sidebarCollapsed ? 'Expand' : 'Collapse'}>
-          <ChevronLeft size={16} style={{ flexShrink:0, transform: sidebarCollapsed ? 'rotate(180deg)' : 'none', transition:'transform 0.22s' }} />
-          {!sidebarCollapsed && <span style={{ fontSize:'12px' }}>Collapse</span>}
-        </button>
-      </div>
-    </aside>
+      )}
+
+      {isMobile && open && <div style={overlay} onClick={() => setOpen(false)} />}
+
+      <aside className="dashboard-sidebar" style={sidebar}>
+        <div style={sbLogo}>
+          <img src={logo} alt="AdNexus" style={{ width:'34px', height:'34px', objectFit:'contain', flexShrink:0 }} />
+          {!sidebarCollapsed && (
+            <div style={{ flex:1 }}>
+              <div style={sbLogoText}>AdNexus</div>
+              <div style={sbLogoSub}>Growth OS</div>
+            </div>
+          )}
+          {isMobile && (
+            <button style={{ ...iconBtn, color: t.textSecondary }} onClick={() => setOpen(false)} aria-label="Close menu">
+              <X size={18} />
+            </button>
+          )}
+        </div>
+
+        <nav style={sbNav}>
+          {!sidebarCollapsed && <div style={sbSectionLbl}>Workspace</div>}
+          {NAV_ITEMS.map(renderItem)}
+
+          {/* Support Inbox — sirf support account ko dikhta hai, waiting chats ke badge ke saath */}
+          {supportInfo.is_support && renderItem({
+            id: 'support-inbox',
+            label: 'Support Inbox',
+            path: '/support-inbox',
+            icon: <LifeBuoy size={18} />,
+            badge: supportInfo.waiting,
+          })}
+
+          {!sidebarCollapsed && <div style={{ ...sbSectionLbl, marginTop:'14px' }}>Workspace settings</div>}
+          {renderItem(SETTINGS_ITEM)}
+        </nav>
+
+        <div style={sbBottom}>
+          <div style={{ borderRadius:'14px', background: darkMode ? 'rgba(255,255,255,0.06)' : '#f8faff', padding: sidebarCollapsed ? '8px' : '10px' }}>
+            <div style={userRow}>
+              <div style={userAvatar}>{displayInitials}</div>
+              {!sidebarCollapsed && (
+                <>
+                  <div style={{ flex:1, overflow:'hidden', minWidth:0 }}>
+                    <div style={userName}>{displayName}</div>
+                    <div style={userRole}>{displayRole}</div>
+                  </div>
+                  <ChevronsUpDown size={14} style={{ flexShrink:0, color: t.textMuted }} />
+                </>
+              )}
+            </div>
+            <button
+              onClick={() => setDarkMode(v => !v)}
+              style={{
+                display:'flex', alignItems:'center', gap:'8px', marginTop:'8px',
+                background: t.cardBg, border: t.border, borderRadius:'10px',
+                padding:'7px 10px', width:'100%', cursor:'pointer', fontFamily:'inherit',
+                justifyContent: sidebarCollapsed ? 'center' : 'space-between',
+                color: t.textSecondary,
+              }}
+            >
+              <span style={{ display:'flex', alignItems:'center', gap:'6px', color: darkMode ? '#7bb8ff' : '#d97706' }}>
+                {darkMode ? <Moon size={16} /> : <Sun size={16} />}
+                {!sidebarCollapsed && <span style={{ fontSize:'12px', color: t.textPrimary, fontWeight:'500' }}>{darkMode ? 'Dark' : 'Light'}</span>}
+              </span>
+            </button>
+          </div>
+
+          {/* Collapse button sirf desktop pe */}
+          {!isMobile && (
+            <button onClick={() => setSidebarCollapsed(v => !v)} style={{ ...collapseBtn, marginTop:'6px' }} title={sidebarCollapsed ? 'Expand' : 'Collapse'}>
+              <ChevronLeft size={16} style={{ flexShrink:0, transform: sidebarCollapsed ? 'rotate(180deg)' : 'none', transition:'transform 0.22s' }} />
+              {!sidebarCollapsed && <span style={{ fontSize:'12px' }}>Collapse</span>}
+            </button>
+          )}
+        </div>
+      </aside>
+    </>
   )
 }
 

@@ -4,11 +4,11 @@ import { useAuth } from '../context/AuthContext'
 import { getReferralSummary, getReferralList } from '../services/api'
 import logo from '../assets/logo.png'
 import {
-  Sun, Moon, Link2, MessageCircle, Copy, Check, ChevronLeft,
+  Link2, MessageCircle, Copy, Check, ChevronLeft,
   LayoutGrid, Megaphone, Users, BarChart3, Share2, Settings,
   Clock, IndianRupee, UserRound,
 } from 'lucide-react'
-   import Sidebar, { LIGHT, DARK } from './Sidebar'
+import Sidebar, { LIGHT } from './Sidebar'
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://127.0.0.1:8000'
 
 
@@ -77,7 +77,6 @@ const HOW_IT_WORKS = [
 const ReferEarn = () => {
   const navigate = useNavigate()
   const { user } = useAuth()
-  const [darkMode, setDarkMode]         = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [loading, setLoading]           = useState(true)
   const [copied, setCopied]             = useState(false)
@@ -91,7 +90,7 @@ const ReferEarn = () => {
   })
   const [referralList, setReferralList] = useState([])
 
-  const t = darkMode ? DARK : LIGHT
+  const t = LIGHT
 
   const displayName = user?.name || 'User'
   const displayRole = user?.role || 'Member'
@@ -163,37 +162,36 @@ const ReferEarn = () => {
 
   const kpiAccentColors = ['#2563eb','#d97706','#16a34a']
   const kpiIconColors   = [
-    { bg: darkMode ? 'rgba(59,139,255,0.2)'  : '#eff6ff', color: darkMode ? '#7bb8ff' : '#2563eb' },
-    { bg: darkMode ? 'rgba(251,191,36,0.2)'  : '#fffbeb', color: darkMode ? '#fde68a' : '#d97706' },
-    { bg: darkMode ? 'rgba(52,211,153,0.2)'  : '#f0fdf4', color: darkMode ? '#6ee7b7' : '#16a34a' },
+    { bg: '#eff6ff', color: '#2563eb' },
+    { bg: '#fffbeb', color: '#d97706' },
+    { bg: '#f0fdf4', color: '#16a34a' },
   ]
   const kpiIcons = [UserRound, Clock, IndianRupee]
   // ── Pastel gradient background per KPI card (Total Referrals / Pending Rewards / Total Earnings) ──
   const kpiCardBg = [t.kpiReferralsBg, t.kpiPendingBg, t.kpiEarningsBg]
 
-  const wrap        = { display:'flex', height:'100vh', background: darkMode ? 'linear-gradient(135deg,#05101f 0%,#091830 50%,#05101f 100%)' : t.pageBg, fontFamily:"'Inter',system-ui,-apple-system,sans-serif", fontSize:'13px' }
+  const wrap        = { display:'flex', height:'100vh', background: t.pageBg, fontFamily:"'Inter',system-ui,-apple-system,sans-serif", fontSize:'13px' }
   const mainCol      = { flex:1, display:'flex', flexDirection:'column', overflow:'hidden', minWidth:0, minHeight:0 }
-  const sidebar     = { width: sidebarCollapsed ? '60px' : '230px', background: t.sidebarBg, borderRight: t.border, display:'flex', flexDirection:'column', flexShrink:0, overflow:'hidden', transition:'width 0.22s ease', ...(darkMode ? { backdropFilter:'blur(20px)' } : { boxShadow:'1px 0 0 #e4e9f5' }) }
+  const sidebar     = { width: sidebarCollapsed ? '60px' : '230px', background: t.sidebarBg, borderRight: t.border, display:'flex', flexDirection:'column', flexShrink:0, overflow:'hidden', transition:'width 0.22s ease', boxShadow:'1px 0 0 #e4e9f5' }
   const sbLogo      = { display:'flex', alignItems:'center', gap:'10px', padding:'18px 16px 14px', borderBottom: t.border, minHeight:'58px', justifyContent: sidebarCollapsed ? 'center' : 'flex-start' }
   const sbLogoText  = { fontSize:'16px', fontWeight:'700', color: t.textPrimary, letterSpacing:'-0.3px', whiteSpace:'nowrap' }
   const sbNav       = { display:'flex', flexDirection:'column', gap:'3px', padding:'12px 10px', flex:1 }
   const navItemBase = { display:'flex', alignItems:'center', gap:'11px', padding:'9px 12px', borderRadius:'10px', border:'none', background:'none', cursor:'pointer', width:'100%', textAlign:'left', fontFamily:'inherit', fontSize:'13px', fontWeight:'500', color: t.navColor, whiteSpace:'nowrap', overflow:'hidden', transition:'all 0.15s' }
-  const navItemActiveStyle = { background: t.navActiveBg, color: t.navActiveColor, fontWeight:'600', ...(darkMode ? { border:'1px solid rgba(59,139,255,0.28)' } : {}) }
+  const navItemActiveStyle = { background: t.navActiveBg, color: t.navActiveColor, fontWeight:'600' }
   const sbBottom    = { borderTop: t.border, padding:'12px 10px' }
   const userRow     = { display:'flex', alignItems:'center', gap:'10px', padding:'9px 8px', borderRadius:'10px', cursor:'pointer', marginBottom:'4px', overflow:'hidden', justifyContent: sidebarCollapsed ? 'center' : 'flex-start' }
   const userAvatar  = { width:'34px', height:'34px', borderRadius:'50%', flexShrink:0, background: t.avatarBg, display:'flex', alignItems:'center', justifyContent:'center', fontWeight:'700', fontSize:'12px', color:'#fff' }
   const userName    = { fontSize:'13px', fontWeight:'600', color: t.textPrimary, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }
   const userRole    = { fontSize:'11px', color: t.textSecondary, whiteSpace:'nowrap' }
   const collapseBtn = { display:'flex', alignItems:'center', gap:'8px', padding:'8px', borderRadius:'10px', border:'none', background:'none', cursor:'pointer', width:'100%', fontFamily:'inherit', whiteSpace:'nowrap', overflow:'hidden', color: t.textSecondary, justifyContent: sidebarCollapsed ? 'center' : 'flex-start' }
-  const topbar      = { background: t.topbarBg, borderBottom: t.border, padding:'0 24px', height:'56px', display:'flex', alignItems:'center', justifyContent:'space-between', flexShrink:0, ...(darkMode ? { backdropFilter:'blur(12px)' } : { boxShadow:'0 1px 0 #e4e9f5' }) }
+  const topbar      = { background: t.topbarBg, borderBottom: t.border, padding:'0 24px', height:'56px', display:'flex', alignItems:'center', justifyContent:'space-between', flexShrink:0, boxShadow:'0 1px 0 #e4e9f5' }
   const topbarTitle = { fontSize:'17px', fontWeight:'800', color: t.textPrimary, letterSpacing:'-0.3px' }
-  const toggleBtn = { display:'flex', alignItems:'center', gap:'6px', background: darkMode ? 'rgba(255,255,255,0.1)' : t.accentLight, border: darkMode ? '1px solid rgba(255,255,255,0.15)' : `1px solid ${t.accentBorder}`, borderRadius:'20px', padding:'6px 13px', fontSize:'12px', fontWeight:'600', cursor:'pointer', color: darkMode ? '#fff' : t.accent, fontFamily:'inherit' }
   const content     = { flex:1, overflow:'auto', padding:'20px 24px', display:'flex', flexDirection:'column', gap:'18px' }
-  const card        = { background: t.cardBg, border: t.border, borderRadius:'16px', padding:'20px 22px', ...(darkMode ? { backdropFilter:'blur(16px)' } : { boxShadow: t.shadow }) }
+  const card        = { background: t.cardBg, border: t.border, borderRadius:'16px', padding:'20px 22px', boxShadow: t.shadow }
   const cardHeader  = { display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'16px' }
   const cardTitle   = { fontSize:'11px', fontWeight:'700', color: t.textSecondary, textTransform:'uppercase', letterSpacing:'0.08em' }
   const table       = { width:'100%', borderCollapse:'separate', borderSpacing:0, fontSize:'12.5px' }
-  const th          = { padding:'11px 12px', textAlign:'left', color: t.textMuted, fontWeight:'700', borderBottom: darkMode ? t.border : '1.5px solid #e4e9f5', fontSize:'10.5px', textTransform:'uppercase', letterSpacing:'0.06em', whiteSpace:'nowrap', background: t.tableHeadBg }
+  const th          = { padding:'11px 12px', textAlign:'left', color: t.textMuted, fontWeight:'700', borderBottom: '1.5px solid #e4e9f5', fontSize:'10.5px', textTransform:'uppercase', letterSpacing:'0.06em', whiteSpace:'nowrap', background: t.tableHeadBg }
   const td          = { padding:'11px 12px', color: t.textPrimary, verticalAlign:'middle', borderBottom:`1px solid ${t.borderColor}` }
   const avatar      = { width:'28px', height:'28px', borderRadius:'50%', background: t.avatarBg, display:'flex', alignItems:'center', justifyContent:'center', fontWeight:'700', fontSize:'11px', color:'#fff', flexShrink:0 }
   const btnPrimary  = { background:'linear-gradient(135deg,#2563eb,#1d4ed8)', color:'#fff', border:'none', borderRadius:'10px', padding:'9px 18px', fontSize:'12px', fontWeight:'700', cursor:'pointer', fontFamily:'inherit', display:'flex', alignItems:'center', gap:'6px', boxShadow:'0 2px 10px rgba(37,99,235,0.35)', whiteSpace:'nowrap' }
@@ -203,21 +201,17 @@ const ReferEarn = () => {
     <div style={wrap}>
       <ReferEarnStyles />
 
-       <Sidebar
-     darkMode={darkMode}
-     setDarkMode={setDarkMode}
-     sidebarCollapsed={sidebarCollapsed}
-     setSidebarCollapsed={setSidebarCollapsed}
-   />
+      <Sidebar
+        darkMode={false}
+        setDarkMode={() => {}}
+        sidebarCollapsed={sidebarCollapsed}
+        setSidebarCollapsed={setSidebarCollapsed}
+      />
 
       {/* ── Main ── */}
       <div style={mainCol}>
         <header style={topbar}>
           <div style={topbarTitle}>Refer & Earn</div>
-          <button style={toggleBtn} onClick={() => setDarkMode(v => !v)}>
-            {darkMode ? <Sun size={15} /> : <Moon size={15} />}
-            <span>{darkMode ? 'Light' : 'Dark'}</span>
-          </button>
         </header>
 
         <div className="refer-content" style={content}>
@@ -239,9 +233,9 @@ const ReferEarn = () => {
             <div style={{ display:'flex', alignItems:'flex-start', gap:'14px', marginBottom:'18px' }}>
               <div style={{
                 width:'44px', height:'44px', borderRadius:'12px', flexShrink:0,
-                background: darkMode ? 'rgba(59,139,255,0.18)' : '#fff',
+                background: '#fff',
                 display:'flex', alignItems:'center', justifyContent:'center',
-                boxShadow: darkMode ? 'none' : '0 2px 8px rgba(37,99,235,0.15)',
+                boxShadow: '0 2px 8px rgba(37,99,235,0.15)',
               }}>
                 <Link2 size={19} color={t.accent} strokeWidth={2.2} />
               </div>
@@ -257,7 +251,7 @@ const ReferEarn = () => {
 
             <div style={{ display:'flex', flexWrap:'wrap', gap:'10px', alignItems:'center' }}>
               <div style={{
-                flex:'1 1 260px', background: darkMode ? 'rgba(0,0,0,0.2)' : '#fff',
+                flex:'1 1 260px', background: '#fff',
                 border:`1px solid ${t.borderColor}`,
                 borderRadius:'10px', padding:'11px 14px', fontSize:'13px', color: t.textPrimary,
                 fontFamily:'monospace', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap',
@@ -291,12 +285,12 @@ const ReferEarn = () => {
                   className="refer-kpi-card"
                   style={{
                     background: kpiCardBg[i],
-                    border: darkMode ? `1px solid ${kpiAccentColors[i]}22` : `1px solid ${kpiAccentColors[i]}18`,
+                    border: `1px solid ${kpiAccentColors[i]}18`,
                     borderRadius: '16px',
                     padding: '20px 20px 18px',
                     position: 'relative',
                     overflow: 'hidden',
-                    boxShadow: darkMode ? 'none' : `0 4px 14px ${kpiAccentColors[i]}12`,
+                    boxShadow: `0 4px 14px ${kpiAccentColors[i]}12`,
                   }}
                 >
                   <div style={{
@@ -368,12 +362,12 @@ const ReferEarn = () => {
               </div>
             ) : (
               <>
-              <div className="refer-table-scroll" style={{ borderRadius:'12px', border: darkMode ? t.border : '1px solid #e4e9f5', overflow:'hidden' }}>
+              <div className="refer-table-scroll" style={{ borderRadius:'12px', border: '1px solid #e4e9f5', overflow:'hidden' }}>
                 <table style={table}>
                   <thead><tr>{['User','Joined Date','Status','Campaigns Count'].map(h => <th key={h} style={th}>{h}</th>)}</tr></thead>
                   <tbody>
                     {referralList.map((r, i) => (
-                      <tr key={r.id || i} className="refer-row" style={{ '--refer-row-hover': t.rowHover, background: i % 2 === 1 ? (darkMode ? 'rgba(255,255,255,0.015)' : '#fafbff') : 'transparent' }}>
+                      <tr key={r.id || i} className="refer-row" style={{ '--refer-row-hover': t.rowHover, background: i % 2 === 1 ? '#fafbff' : 'transparent' }}>
                         <td style={td}>
                           <div style={{ display:'flex', alignItems:'center', gap:'8px' }}>
                             <div style={avatar}>{(r.name || '?').charAt(0).toUpperCase()}</div>
@@ -392,7 +386,7 @@ const ReferEarn = () => {
               {/* Mobile card view */}
               <div className="refer-mobile-cards">
                 {referralList.map((r, i) => (
-                  <div key={r.id || i} style={{ border: t.border, borderRadius:'12px', padding:'12px 14px', background: darkMode ? 'rgba(255,255,255,0.03)' : '#fafbff' }}>
+                  <div key={r.id || i} style={{ border: t.border, borderRadius:'12px', padding:'12px 14px', background: '#fafbff' }}>
                     <div style={{ display:'flex', alignItems:'center', gap:'8px', marginBottom:'8px' }}>
                       <div style={avatar}>{(r.name || '?').charAt(0).toUpperCase()}</div>
                       <span style={{ fontWeight:'600', fontSize:'13px' }}>{r.name || '—'}</span>

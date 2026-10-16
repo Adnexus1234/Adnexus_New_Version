@@ -17,6 +17,15 @@
 #     - send_meta_lead_event() takes extra optional params (fbp, client_ip,
 #       user_agent, source_url) for better Meta match quality — backward
 #       compatible with old 3-arg calls.
+#
+# RETARGETING PHASE 1 CHANGE:
+#     - send_meta_lead_event() now also accepts fbc (real _fbc cookie) and
+#       event_id (same ID as the browser Pixel Lead event, for deduplication).
+#
+# RETARGETING PHASE 2 CHANGE:
+#     - create_meta_lead_retargeting_audience() and get_meta_custom_audience_size()
+#       added at the end of the file (take access_token / ad_account_id / pixel_id
+#       as parameters, no env vars).
 # ============================================================
 
 from facebook_business.api import FacebookAdsApi
@@ -25,6 +34,7 @@ from facebook_business.adobjects.campaign import Campaign
 from facebook_business.adobjects.adset import AdSet
 from facebook_business.adobjects.adcreative import AdCreative
 from facebook_business.adobjects.ad import Ad
+from facebook_business.adobjects.customaudience import CustomAudience
 from facebook_business.exceptions import FacebookRequestError
 import os
 import hmac
@@ -557,6 +567,8 @@ def send_meta_lead_event(
     client_ip: str = None,
     user_agent: str = None,
     source_url: str = None,
+    fbc: str = None,
+    event_id: str = None,
 ) -> dict:
     if not META_PIXEL_ID or not META_ACCESS_TOKEN:
         print("[meta_lead_event] Pixel ID ya Access Token missing — skip kar rahe hain")
@@ -569,7 +581,11 @@ def send_meta_lead_event(
         if phone:
             clean_phone = "".join(filter(str.isdigit, phone))
             user_data["ph"] = [hashlib.sha256(clean_phone.encode()).hexdigest()]
-        if fbclid:
+        # Prefer the real _fbc cookie (carries the true click timestamp);
+        # fall back to deriving it from fbclid only when the cookie is missing.
+        if fbc:
+            user_data["fbc"] = fbc
+        elif fbclid:
             user_data["fbc"] = f"fb.1.{int(time.time())}.{fbclid}"
         # ── FIX: fbp, client_ip, user_agent add kiye — ye Meta ke match quality ke liye zaroori hain ──
         if fbp:
@@ -588,6 +604,9 @@ def send_meta_lead_event(
         # ── FIX: event_source_url add kiya (Meta strongly recommends ise CAPI events ke saath bhejna) ──
         if source_url:
             event["event_source_url"] = source_url
+        # Same event_id as the browser Pixel Lead event, so Meta deduplicates the pair
+        if event_id:
+            event["event_id"] = event_id
 
         payload = {"data": [event]}
 
@@ -831,3 +850,111 @@ def get_meta_age_insights(adset_id: str = None, campaign_id: str = None) -> dict
     except Exception as e:
         print(f"[meta_age_insights] Failed: {e}")
         return {}
+
+
+# ════════════════════════════════════════════════════════════
+# RETARGETING (Phase 2): website-visitor Custom Audience
+# Per-client ready: access_token / ad_account_id / pixel_id are parameters,
+# nothing here reads META_ACCESS_TOKEN / META_AD_ACCOUNT / META_PIXEL_ID.
+# ════════════════════════════════════════════════════════════
+def _init_meta_api_for(access_token: str, ad_account_id: str) -> AdAccount:
+    FacebookAdsApi.init(
+        app_id=META_APP_ID,
+        app_secret=META_APP_SECRET,
+        access_token=access_token,
+        api_version="v21.0",
+    )
+    acct = ad_account_id if str(ad_account_id).startswith("act_") else f"act_{ad_account_id}"
+    return AdAccount(acct)
+
+
+def create_meta_lead_retargeting_audience(
+    access_token: str,
+    ad_account_id: str,
+    pixel_id: str,
+    campaign_id: int,
+    audience_name: str = None,
+    retention_days: int = 30,
+) -> dict:
+    """
+    Audience = people who opened /lead/{campaign_id} in the last `retention_days`
+    MINUS people who fired the Lead event in the same window.
+    """
+    try:
+        import json
+
+        account = _init_meta_api_for(access_token, ad_account_id)
+        retention_seconds = max(1, min(retention_days, 180)) * 86400
+        event_source = [{"id": str(pixel_id), "type": "pixel"}]
+
+        rule = {
+            "inclusions": {
+                "operator": "or",
+                "rules": [{
+                    "event_sources": event_source,
+                    "retention_seconds": retention_seconds,
+                    # trailing "?" so /lead/1 does not also match /lead/12
+                    "filter": {
+                        "operator": "and",
+                        "filters": [{
+                            "field": "url",
+                            "operator": "i_contains",
+                            "value": f"/lead/{campaign_id}?",
+                        }],
+                    },
+                }],
+            },
+            "exclusions": {
+                "operator": "or",
+                "rules": [{
+                    "event_sources": event_source,
+                    "retention_seconds": retention_seconds,
+                    "filter": {
+                        "operator": "and",
+                        "filters": [{
+                            "field": "event",
+                            "operator": "eq",
+                            "value": "Lead",
+                        }],
+                    },
+                }],
+            },
+        }
+
+        audience = account.create_custom_audience(fields=[], params={
+            "name": audience_name or f"AdNexus Retargeting - Campaign {campaign_id} (visited, not submitted)",
+            "subtype": "WEBSITE",
+            "description": "Visited lead form, did not submit",
+            "rule": json.dumps(rule),
+            "prefill": True,   # include past pixel events already collected
+        })
+        return {"success": True, "audience_id": audience["id"]}
+    except FacebookRequestError as e:
+        return {"success": False, "error": e.api_error_message(), "body": e.body()}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+def get_meta_custom_audience_size(access_token: str, ad_account_id: str, audience_id: str) -> dict:
+    """
+    Meta only returns a range, not an exact count. Delivery needs roughly 100+ people.
+    """
+    try:
+        _init_meta_api_for(access_token, ad_account_id)
+        data = CustomAudience(audience_id).api_get(fields=[
+            "approximate_count_lower_bound",
+            "approximate_count_upper_bound",
+            "operation_status",
+            "delivery_status",
+        ])
+        return {
+            "success": True,
+            "size_lower": int(data.get("approximate_count_lower_bound", 0) or 0),
+            "size_upper": int(data.get("approximate_count_upper_bound", 0) or 0),
+            "operation_status": data.get("operation_status"),
+            "delivery_status": data.get("delivery_status"),
+        }
+    except FacebookRequestError as e:
+        return {"success": False, "error": e.api_error_message()}
+    except Exception as e:
+        return {"success": False, "error": str(e)}

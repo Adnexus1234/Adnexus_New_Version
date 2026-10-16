@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { GoogleLogin } from '@react-oauth/google'
 import { login, googleLogin } from '../services/api'
@@ -20,6 +20,24 @@ const Login = () => {
   const [attemptsLeft, setAttemptsLeft] = useState(null)
   const [lockedUntil, setLockedUntil] = useState(null)
   const [remainingSeconds, setRemainingSeconds] = useState(0)
+
+  // ── Google button width (card ki width ke hisaab se, taaki hamesha center + full-width rahe) ──
+  const googleWrapRef = useRef(null)
+  const [googleWidth, setGoogleWidth] = useState(308)
+
+  useEffect(() => {
+    const el = googleWrapRef.current
+    if (!el) return
+
+    const update = () => {
+      const w = Math.floor(el.getBoundingClientRect().width)
+      if (w) setGoogleWidth(Math.min(400, Math.max(200, w)))
+    }
+
+    update()
+    window.addEventListener('resize', update)
+    return () => window.removeEventListener('resize', update)
+  }, [])
 
   // ── countdown timer ──
   useEffect(() => {
@@ -106,8 +124,6 @@ const Login = () => {
         .login-submit-btn:active:not(:disabled) { transform: translateY(0); }
         .login-eye-btn:hover { color: #2563eb !important; }
         .login-link:hover { text-decoration: underline !important; }
-        .google-login-wrap > div { width: 100% !important; }
-        .google-login-wrap iframe { width: 100% !important; }
       `}</style>
 
       <div style={styles.bgBlob1} />
@@ -142,10 +158,16 @@ const Login = () => {
           </div>
         )}
 
-        <div className="google-login-wrap" style={{ marginBottom: '18px' }}>
+        <div ref={googleWrapRef} style={styles.googleWrap}>
           <GoogleLogin
             onSuccess={handleGoogleSuccess}
             onError={() => setError('Google login failed.')}
+            width={googleWidth}
+            theme="outline"
+            size="large"
+            text="signin_with"
+            shape="rectangular"
+            logo_alignment="left"
           />
         </div>
 
@@ -302,6 +324,7 @@ const styles = {
   supportText: { textAlign: 'center', fontSize: '11.5px', color: '#94a3b8', marginTop: '10px' },
   forgotText: { textAlign: 'center', fontSize: '12.5px', color: '#64748b', marginTop: '12px' },
   link: { color: '#2563eb', fontWeight: '600', textDecoration: 'none' },
+  googleWrap: { display: 'flex', justifyContent: 'center', width: '100%', marginBottom: '18px', minHeight: '44px' },
   divider: { display: 'flex', alignItems: 'center', gap: '10px', margin: '6px 0 18px' },
   dividerLine: { flex: 1, height: '1px', background: '#e4e9f5' },
   dividerText: { fontSize: '11.5px', color: '#94a3b8', whiteSpace: 'nowrap', fontWeight: '500' },

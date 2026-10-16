@@ -172,6 +172,7 @@ class FormSubmissionCreate(BaseModel):
     extra_data:   Optional[dict] = {}
     platform:     Optional[str] = ""
     utm_source:   Optional[str] = ""
+    event_id:     Optional[str] = ""
 
 
 class ClickTrackingCreate(BaseModel):
@@ -425,6 +426,8 @@ def submit_form(
             phone=data.phone or "",
             fbclid=(data.extra_data or {}).get("fbclid"),
             fbp=(data.extra_data or {}).get("fbp"),
+            fbc=(data.extra_data or {}).get("fbc"),
+            event_id=data.event_id or None,
             client_ip=request.client.host if request.client else None,
             user_agent=request.headers.get("user-agent"),
             source_url=f"https://adnexus.co.in/lead/{campaign_id}",

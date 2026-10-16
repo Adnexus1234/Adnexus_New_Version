@@ -160,11 +160,8 @@ const Settings = () => {
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
         <header style={topbar}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
-            <button style={hamburgerBtn} onClick={() => setMobileNavOpen(true)} aria-label="Open menu">
-              <MenuIcon />
-            </button>
-            <div style={{ fontSize: isMobile ? '15px' : '16px', fontWeight: '700', color: t.textPrimary, whiteSpace: 'nowrap' }}>Settings</div>
-          </div>
+  <div style={{ fontSize: isMobile ? '15px' : '16px', fontWeight: '700', color: t.textPrimary, whiteSpace: 'nowrap' }}>Settings</div>
+</div>
           <button style={toggleBtn} onClick={() => setDarkMode(v => !v)}>
             {darkMode ? <SunIcon /> : <MoonIcon />}
             {!isMobile && (darkMode ? 'Light' : 'Dark')}

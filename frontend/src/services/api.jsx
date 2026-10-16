@@ -95,3 +95,13 @@ export const placesAutocomplete = (input, sessionToken) =>
 
 export const placesDetails = (placeId, sessionToken) =>
   API.get('/api/places/details', { params: { place_id: placeId, session_token: sessionToken } })
+
+// Design Templates APIs
+export const getDesignTemplates = (industry) =>
+  API.get('/api/templates', { params: { industry } })
+
+export const getDesignTemplate = (id) => API.get(`/api/templates/${id}`)
+
+export const saveUserDesign = (data) => API.post('/api/designs', data)
+
+export const getUserDesigns = () => API.get('/api/designs')

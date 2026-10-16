@@ -14,6 +14,8 @@ from app.routes import chat_router
 from app.routes import referral 
 from app.routes import contact
 from app.routes import notifications
+from app.routes import campaigns, leads, analytics, ad_content, public_forms, auth, admin, audience_targeting, designs 
+
 
 
 # Database mein saari tables banao
@@ -88,6 +90,11 @@ app.include_router(
     tags=["Notifications"]
 )
 
+app.include_router(
+    designs.router,
+    prefix="/api",
+    tags=["Designs"]
+)
 # Test route
 @app.get("/")
 def root():
